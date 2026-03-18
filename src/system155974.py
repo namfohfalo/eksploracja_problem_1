@@ -54,9 +54,8 @@ class MySystem(RatingSystem):
 
         movie_ratings_list = self.movie_ratings.get(movie, [])
         movie_ratings_count = len(movie_ratings_list)
-        movie_avg = sum(movie_ratings_list) / movie_ratings_count if movie_ratings_count > 0 else 2.5
+        movie_avg = sum(movie_ratings_list) / movie_ratings_count if movie_ratings_count > 0 else 2.
 
-        # Hybryda działa lepiej niż sama średnia użytkownika
         return (user_avg + movie_avg) / 2.0
 
     def __str__(self):

@@ -7,10 +7,8 @@ class MySystem(RatingSystem):
     def __init__(self):
         super().__init__()
         self.movie_genres = {}
-        # Słownik pomocniczy: movie_id -> lista user_id, którzy go ocenili
         self.movie_to_users = {}
 
-        # Wczytywanie gatunków filmowych
         try:
             with open('../data/movie.csv', encoding='utf-8') as file:
                 csv_reader = csv.reader(file)
@@ -24,8 +22,6 @@ class MySystem(RatingSystem):
         except FileNotFoundError:
             print("Uwaga: Nie znaleziono pliku '../data/movie.csv'.")
 
-        # Budowanie indeksu movie -> users dla optymalizacji Collaborative Filtering
-        # Zakładamy, że self.users jest wypełnione przez klasę bazową przed lub w trakcie działania
         for user_id, user_obj in self.users.items():
             for movie_id in user_obj.ratings.keys():
                 if movie_id not in self.movie_to_users:
@@ -68,7 +64,6 @@ class MySystem(RatingSystem):
         neighbors = []
         user_mean = self._get_user_mean(user.ratings)
 
-        # Optymalizacja: sprawdzamy tylko użytkowników, którzy ocenili ten film
         potential_neighbor_ids = self.movie_to_users.get(movie, [])
 
         for other_id in potential_neighbor_ids:
@@ -82,13 +77,12 @@ class MySystem(RatingSystem):
                 continue
 
             sim = self._cosine_similarity(user.ratings, other_user.ratings)
-            if sim > 0:  # Interesują nas tylko pozytywne korelacje
+            if sim > 0:
                 neighbors.append((other_user, sim))
 
         if not neighbors:
             return None, 0
 
-        # Wybór najlepszych sąsiadów
         neighbors.sort(key=lambda x: x[1], reverse=True)
         top_k = neighbors[:k]
 
@@ -125,7 +119,6 @@ class MySystem(RatingSystem):
                 total_weight += weight
 
         if total_weight > 0:
-            # Confidence rośnie wraz z liczbą dopasowań (max przy 15 punktach wagi)
             confidence = min(total_weight / 15.0, 1.0)
             return weighted_sum / total_weight, confidence
 
@@ -136,21 +129,17 @@ class MySystem(RatingSystem):
         collab_val, collab_conf = self._collaborative_score(user, movie)
         genre_val, genre_conf = self._genre_score(user, movie)
 
-        # Scenariusz 1: Mamy oba wyniki - ważymy je
         if collab_val is not None and genre_val is not None:
-            # Dajemy większą wagę CF, bo zazwyczaj jest dokładniejszy
             w_collab = collab_conf * 2.0
             w_genre = genre_conf * 1.0
             final = (collab_val * w_collab + genre_val * w_genre) / (w_collab + w_genre)
             return max(0.5, min(5.0, final))
 
-        # Scenariusz 2: Mamy tylko jeden z systemów
         if collab_val is not None:
             return max(0.5, min(5.0, collab_val))
         if genre_val is not None:
             return max(0.5, min(5.0, genre_val))
 
-        # Scenariusz 3: Cold Start - brak danych o gatunkach i sąsiadach
         u_avg = self._get_user_mean(user.ratings)
 
         movie_ratings = self.movie_ratings.get(movie, [])
